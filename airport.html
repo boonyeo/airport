@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Airport Simulation: Restored Labels</title>
+    <style>
+        body { margin: 0; display: flex; flex-direction: column; align-items: center; background: #2c3e50; color: white; font-family: sans-serif; overflow: hidden; }
+        canvas { background: #fff; display: block; }
+        .controls { 
+            background: #34495e; padding: 15px; width: 100%; display: flex; 
+            justify-content: center; gap: 40px; box-shadow: 0 -5px 15px rgba(0,0,0,0.3); z-index: 10;
+        }
+        .control-group { display: flex; flex-direction: column; align-items: center; }
+        span { margin-top: 5px; font-family: monospace; color: #f1c40f; font-size: 1.1em; }
+        .label-text { font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <div class="control-group">
+            <span class="label-text">Floor Speed (x)</span>
+            <input type="range" id="walkSlider" min="0.5" max="4" step="0.1" value="1.0">
+            <span id="xVal">1.0</span>
+        </div>
+        <div class="control-group">
+            <span class="label-text">Zone 1 [1/6] (z)</span>
+            <input type="range" id="zSlider" min="0.1" max="6" step="0.1" value="0.7">
+            <span id="zVal">0.7</span>
+        </div>
+        <div class="control-group">
+            <span class="label-text">Zone 2 [5/6] (y)</span>
+            <input type="range" id="ySlider" min="0.1" max="6" step="0.1" value="2.0">
+            <span id="yVal">2.0</span>
+        </div>
+    </div>
+
+    <canvas id="airportCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('airportCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let frame = 0;
+        let xPosA = 0, xPosB = 0;
+        let zTexOffset = 0, yTexOffset = 0;
+        let entryA, entryB, zone1Len, transA, transB;
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 80;
+            
+            entryA = canvas.width * 0.15; 
+            entryB = canvas.width * 0.25; 
+            
+            zone1Len = (canvas.width - entryA) * (1/6);
+            transA = entryA + zone1Len;
+            transB = entryB + zone1Len;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function drawBeltTexture(x, y, w, h, speed, isZ) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, w, h);
+            ctx.clip(); 
+            
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+            ctx.lineWidth = 2;
+            let spacing = 35;
+            let offset = isZ ? zTexOffset : yTexOffset;
+
+            for (let i = x + (offset % spacing) - spacing; i < x + w + spacing; i += spacing) {
+                ctx.beginPath();
+                ctx.moveTo(i, y);
+                ctx.lineTo(i - 15, y + h);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawEnvironment(z, y) {
+            ctx.fillStyle = "#ecf0f1";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Logic for drawing belt backgrounds
+            ctx.fillStyle = "#dcdde1"; ctx.fillRect(0, 50, entryA, 100);
+            ctx.fillStyle = "#34495e"; ctx.fillRect(entryA, 50, zone1Len, 100);
+            ctx.fillStyle = "#2c3e50"; ctx.fillRect(transA, 50, canvas.width - transA, 100);
+
+            ctx.fillStyle = "#dcdde1"; ctx.fillRect(0, 200, entryB, 100);
+            ctx.fillStyle = "#34495e"; ctx.fillRect(entryB, 200, zone1Len, 100);
+            ctx.fillStyle = "#2c3e50"; ctx.fillRect(transB, 200, canvas.width - transB, 100);
+
+            // Update texture offsets
+            zTexOffset -= z;
+            yTexOffset -= y;
+            
+            // Draw Textures
+            drawBeltTexture(entryA, 50, zone1Len, 100, z, true);
+            drawBeltTexture(entryB, 200, zone1Len, 100, z, true);
+            drawBeltTexture(transA, 50, canvas.width - transA, 100, y, false);
+            drawBeltTexture(transB, 200, canvas.width - transB, 100, y, false);
+
+            // Draw Labels
+            ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+            ctx.font = "bold 12px sans-serif";
+            ctx.textAlign = "center";
+
+            // Top Lane Labels
+            ctx.fillText("ZONE 1", entryA + zone1Len/2, 65);
+            ctx.fillText("ZONE 2", transA + (canvas.width - transA)/2, 65);
+
+            // Bottom Lane Labels
+            ctx.fillText("ZONE 1", entryB + zone1Len/2, 215);
+            ctx.fillText("ZONE 2", transB + (canvas.width - transB)/2, 215);
+
+            // Markers
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "#f1c40f"; 
+            ctx.beginPath(); ctx.moveTo(entryA, 50); ctx.lineTo(entryA, 150); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(entryB, 200); ctx.lineTo(entryB, 300); ctx.stroke();
+            
+            ctx.strokeStyle = "#e74c3c"; 
+            ctx.beginPath(); ctx.moveTo(transA, 50); ctx.lineTo(transA, 150); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(transB, 200); ctx.lineTo(transB, 300); ctx.stroke();
+
+            ctx.fillStyle = "#bdc3c7"; ctx.fillRect(0, 150, canvas.width, 5);
+        }
+
+        function drawPerson(x, y, color, speedLabel, isWalking) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.fillStyle = color;
+            ctx.fillRect(-12, -60, 24, 50);
+            ctx.beginPath(); ctx.arc(0, -75, 12, 0, Math.PI * 2); ctx.fill();
+
+            let walkRate = parseFloat(document.getElementById('walkSlider').value);
+            let legAngle = isWalking ? Math.sin(frame * walkRate * 0.15) * 18 : 0;
+            
+            ctx.strokeStyle = "#222"; ctx.lineWidth = 5;
+            ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(legAngle, 5); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(-legAngle, 5); ctx.stroke();
+
+            ctx.fillStyle = "rgba(0,0,0,0.8)";
+            ctx.font = "bold 14px monospace";
+            ctx.fillText("v=" + speedLabel, -25, -100);
+            ctx.restore();
+        }
+
+        function animate() {
+            const x = parseFloat(document.getElementById('walkSlider').value);
+            const z = parseFloat(document.getElementById('zSlider').value);
+            const y = parseFloat(document.getElementById('ySlider').value);
+            
+            document.getElementById('xVal').innerText = x.toFixed(1);
+            document.getElementById('zVal').innerText = z.toFixed(1);
+            document.getElementById('yVal').innerText = y.toFixed(1);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawEnvironment(z, y);
+
+            let speedA, walkA = false;
+            if (xPosA < entryA) { speedA = x; walkA = true; }
+            else if (xPosA < transA) { speedA = z; }
+            else { speedA = y; }
+            xPosA += speedA;
+
+            let speedB, walkB = false;
+            if (xPosB < entryB) { speedB = x; walkB = true; }
+            else if (xPosB < transB) { speedB = z; }
+            else { speedB = y; }
+            xPosB += speedB;
+
+            if (xPosA > canvas.width + 50 && xPosB > canvas.width + 50) {
+                xPosA = 0; xPosB = 0;
+            }
+
+            drawPerson(xPosA, 135, "#e67e22", speedA.toFixed(1), walkA);
+            drawPerson(xPosB, 285, "#3498db", speedB.toFixed(1), walkB);
+
+            frame++;
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
