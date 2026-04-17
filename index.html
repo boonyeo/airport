@@ -1,38 +1,75 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Airport Simulation: Spaced Design</title>
+    <title>Airport Simulation: Clean Scroll</title>
     <style>
-        body { margin: 0; display: flex; flex-direction: column; align-items: center; background: #2c3e50; color: white; font-family: sans-serif; overflow: hidden; }
-        canvas { background: #fff; display: block; }
-        .controls { 
-            background: #34495e; padding: 15px; width: 100%; display: flex; 
-            justify-content: center; gap: 40px; box-shadow: 0 -5px 15px rgba(0,0,0,0.3); z-index: 10;
+        body { 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            background: #2c3e50; 
+            color: white; 
+            font-family: sans-serif; 
+            /* Allows natural scrolling */
+            overflow-y: auto; 
+            overflow-x: hidden; 
         }
-        .control-group { display: flex; flex-direction: column; align-items: center; }
+        
+        .controls { 
+            background: #34495e; 
+            padding: 20px; 
+            width: 100%; 
+            display: flex; 
+            justify-content: center; 
+            gap: 20px; 
+            flex-wrap: wrap;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
+            z-index: 5;
+            /* Controls now scroll away with the page */
+            position: relative; 
+        }
+
+        canvas { 
+            background: #fff; 
+            display: block; 
+            /* Ensures both belts always have space regardless of window height */
+            min-height: 600px; 
+        }
+
+        .control-group { display: flex; flex-direction: column; align-items: center; min-width: 130px; }
         span { margin-top: 5px; font-family: monospace; color: #f1c40f; font-size: 1.1em; }
-        .label-text { font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
+        .label-text { font-weight: bold; margin-bottom: 8px; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .hint {
+            padding: 10px;
+            font-size: 0.8em;
+            color: #bdc3c7;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 
     <div class="controls">
         <div class="control-group">
-            <span class="label-text">Floor Speed (x)</span>
+            <span class="label-text">Walk (x)</span>
             <input type="range" id="walkSlider" min="0.5" max="4" step="0.1" value="1.0">
             <span id="xVal">1.0</span>
         </div>
         <div class="control-group">
-            <span class="label-text">Zone 1 [Fixed] (z)</span>
+            <span class="label-text">Zone 1 (z)</span>
             <input type="range" id="zSlider" min="0.1" max="6" step="0.1" value="0.7">
             <span id="zVal">0.7</span>
         </div>
         <div class="control-group">
-            <span class="label-text">Zone 2 [Accelerating] (y)</span>
+            <span class="label-text">Zone 2 (y)</span>
             <input type="range" id="ySlider" min="0.1" max="6" step="0.1" value="2.0">
             <span id="yVal">2.0</span>
         </div>
     </div>
+    
+    <div class="hint">Scroll down to see both belts in action ↓</div>
 
     <canvas id="airportCanvas"></canvas>
 
@@ -49,7 +86,9 @@
 
         function resize() {
             canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight - 80;
+            // Provide enough height for the lane logic + margins
+            canvas.height = 650; 
+            
             entryA = canvas.width * 0.15; 
             entryB = canvas.width * 0.25; 
             zone1Len = (canvas.width - entryA) * (1/6);
@@ -74,9 +113,7 @@
         }
 
         function drawDistanceMarker(x1, x2) {
-            // Positioned in the middle of the large gap between belts
-            // (Belt 1 ends at 150, Belt 2 starts at 250)
-            const yPos = 200; 
+            const yPos = 210; 
             const dist = (x1 - x2).toFixed(1);
             
             ctx.strokeStyle = "#27ae60";
@@ -84,35 +121,32 @@
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 5]);
 
-            // Horizontal line
             ctx.beginPath();
             ctx.moveTo(x1, yPos);
             ctx.lineTo(x2, yPos);
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Vertical caps
             ctx.beginPath();
             ctx.moveTo(x1, yPos - 5); ctx.lineTo(x1, yPos + 5);
             ctx.moveTo(x2, yPos - 5); ctx.lineTo(x2, yPos + 5);
             ctx.stroke();
 
-            // Label
             ctx.font = "bold 13px monospace";
             ctx.textAlign = "center";
-            ctx.fillText(`Relative Distance: ${dist}`, (x1 + x2) / 2, yPos + 18);
+            ctx.fillText(`Relative Distance: ${dist}`, (x1 + x2) / 2, yPos + 22);
         }
 
         function drawEnvironment(z, yBase, speedA, speedB) {
             ctx.fillStyle = "#ecf0f1"; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Top Belt (Lane A) - No change
+            // Top Belt (Lane A)
             ctx.fillStyle = "#dcdde1"; ctx.fillRect(0, 50, entryA, 100);
             ctx.fillStyle = "#34495e"; ctx.fillRect(entryA, 50, zone1Len, 100);
             ctx.fillStyle = "#2c3e50"; ctx.fillRect(transA, 50, canvas.width - transA, 100);
 
-            // Bottom Belt (Lane B) - Moved down from y=200 to y=250
-            const yOffsetB = 250;
+            // Bottom Belt (Lane B)
+            const yOffsetB = 300; // Increased spacing for even more clarity
             ctx.fillStyle = "#dcdde1"; ctx.fillRect(0, yOffsetB, entryB, 100);
             ctx.fillStyle = "#34495e"; ctx.fillRect(entryB, yOffsetB, zone1Len, 100);
             ctx.fillStyle = "#2c3e50"; ctx.fillRect(transB, yOffsetB, canvas.width - transB, 100);
@@ -122,12 +156,9 @@
 
             drawBeltTexture(entryA, 50, zone1Len, 100, z, true);
             drawBeltTexture(transA, 50, canvas.width - transA, 100, speedA, false);
-            
-            // Texture for Lane B
             drawBeltTexture(entryB, yOffsetB, zone1Len, 100, z, true);
             drawBeltTexture(transB, yOffsetB, canvas.width - transB, 100, speedB, false);
 
-            // Labels
             ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
             ctx.font = "bold 11px sans-serif";
             ctx.textAlign = "center";
@@ -136,7 +167,7 @@
             ctx.fillText("ZONE 1", entryB + zone1Len/2, yOffsetB + 15);
             ctx.fillText(`ZONE 2 (v=${speedB.toFixed(1)})`, transB + (canvas.width - transB)/2, yOffsetB + 15);
 
-            // Markers
+            // Entry/Transition Markers
             ctx.lineWidth = 4;
             ctx.strokeStyle = "#f1c40f"; 
             ctx.beginPath(); ctx.moveTo(entryA, 50); ctx.lineTo(entryA, 150); ctx.stroke();
@@ -145,10 +176,10 @@
             ctx.beginPath(); ctx.moveTo(transA, 50); ctx.lineTo(transA, 150); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(transB, yOffsetB); ctx.lineTo(transB, yOffsetB + 100); ctx.stroke();
 
-            // Divider zones
+            // Neutral Dividers
             ctx.fillStyle = "#bdc3c7"; 
-            ctx.fillRect(0, 150, canvas.width, 5); // Divider below Lane A
-            ctx.fillRect(0, yOffsetB - 5, canvas.width, 5); // Divider above Lane B
+            ctx.fillRect(0, 150, canvas.width, 5); 
+            ctx.fillRect(0, yOffsetB - 5, canvas.width, 5);
         }
 
         function drawPerson(x, y, color, speedLabel, isWalking) {
@@ -179,7 +210,6 @@
             document.getElementById('zVal').innerText = z.toFixed(1);
             document.getElementById('yVal').innerText = yBase.toFixed(1);
 
-            // Logic A
             let speedA, walkA = false;
             if (xPosA < entryA) { speedA = x; walkA = true; }
             else if (xPosA < transA) { speedA = z; }
@@ -189,7 +219,6 @@
             }
             xPosA += speedA;
 
-            // Logic B
             let speedB, walkB = false;
             if (xPosB < entryB) { speedB = x; walkB = true; }
             else if (xPosB < transB) { speedB = z; }
@@ -202,7 +231,6 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawEnvironment(z, yBase, (xPosA < transA ? yBase : speedA), (xPosB < transB ? yBase : speedB));
 
-            // DRAW DISTANCE (Placed here to be on top of environment)
             drawDistanceMarker(xPosA, xPosB);
 
             if (xPosA > canvas.width + 50 && xPosB > canvas.width + 50) {
@@ -211,7 +239,7 @@
             }
 
             drawPerson(xPosA, 135, "#e67e22", speedA.toFixed(2), walkA);
-            drawPerson(xPosB, 335, "#3498db", speedB.toFixed(2), walkB); // Person B moved down from 285 to 335
+            drawPerson(xPosB, 385, "#3498db", speedB.toFixed(2), walkB); // Increased Y for B
 
             frame++;
             requestAnimationFrame(animate);
